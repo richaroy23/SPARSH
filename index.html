@@ -521,7 +521,17 @@
     </footer>
 
     <script>
-        const API_BASE_URL = 'http://localhost:5000/api';
+        function getApiBaseUrl() {
+            // Prefer same-origin API when page is served by Flask or a forwarded URL.
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                return `${window.location.origin}/api`;
+            }
+
+            // Fallback for directly-opened file:// pages.
+            return 'http://127.0.0.1:5000/api';
+        }
+
+        const API_BASE_URL = getApiBaseUrl();
         
         // Smooth scrolling for navigation links
         document.querySelectorAll('nav a').forEach(anchor => {
@@ -704,7 +714,10 @@
                 if (healthy) {
                     showNotification('✅ Connected to backend server', 'success');
                 } else {
-                    showNotification('⚠️ Backend server not detected. Start it with: python app.py', 'error');
+                    showNotification(
+                        '⚠️ Backend not detected. Open this page from http://localhost:5000 (or your forwarded port URL), not as a file.',
+                        'error'
+                    );
                 }
             });
         });
