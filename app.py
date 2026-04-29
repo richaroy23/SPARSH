@@ -42,6 +42,26 @@ processes = {
 # Get the directory where this script is located
 BASE_DIR = Path(__file__).parent
 
+def launch_module_process(script_path):
+    """Launch a module with the same Python interpreter as the backend."""
+    process = subprocess.Popen(
+        [sys.executable, str(script_path)],
+        cwd=str(BASE_DIR),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
+    )
+
+    time.sleep(1)
+    if process.poll() is not None:
+        stderr_output = process.stderr.read().strip() if process.stderr else ''
+        stdout_output = process.stdout.read().strip() if process.stdout else ''
+        error_message = stderr_output or stdout_output or 'Module exited unexpectedly during startup'
+        return None, error_message
+
+    return process, None
+
 @app.route('/', methods=['GET'])
 def index():
     """Serve the frontend"""
@@ -96,13 +116,14 @@ def launch_gesture():
             }), 404
         
         # Launch the gesture control script
-        process = subprocess.Popen(
-            ['python', str(script_path)],
-            cwd=str(BASE_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
-        )
+        process, launch_error = launch_module_process(script_path)
+
+        if launch_error:
+            return jsonify({
+                'success': False,
+                'message': f'Gesture control failed to start: {launch_error}',
+                'code': 'LAUNCH_FAILED'
+            }), 500
         
         processes['gesture'] = process
         
@@ -143,13 +164,14 @@ def launch_voice():
             }), 404
         
         # Launch the voice control script
-        process = subprocess.Popen(
-            ['python', str(script_path)],
-            cwd=str(BASE_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
-        )
+        process, launch_error = launch_module_process(script_path)
+
+        if launch_error:
+            return jsonify({
+                'success': False,
+                'message': f'Voice control failed to start: {launch_error}',
+                'code': 'LAUNCH_FAILED'
+            }), 500
         
         processes['voice'] = process
         
