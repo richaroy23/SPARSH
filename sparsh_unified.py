@@ -24,18 +24,39 @@ class GestureApp:
         self.confirmation_start_time = 0
         
         # Gesture control variables
-        self.prev_finger_count = -1
-        self.gesture_start_time = 0
-        self.gesture_initialized = False
+        self.GESTURE_HOLD_TIME = 0.35
+        self.GESTURE_COOLDOWN = 0.7
+        self.gesture_candidate_count = -1
+        self.gesture_candidate_start_time = 0
+        self.last_gesture_trigger_time = 0
+        self.last_action_text = ""
+        self.last_action_time = 0
         
         # MediaPipe setup
-        self.cap = cv2.VideoCapture(0)
+        self.cap = self.initialize_camera()
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
         self.mp_draw = mp.solutions.drawing_utils
         
         # Screen dimensions
         self.screen_width, self.screen_height = pyautogui.size()
+
+    def initialize_camera(self):
+        """Initialize webcam with fallback indices."""
+        camera_indices = [0, 1, 2]
+
+        for index in camera_indices:
+            if cv2.__version__ and hasattr(cv2, 'CAP_DSHOW'):
+                cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            else:
+                cap = cv2.VideoCapture(index)
+
+            if cap.isOpened():
+                print(f"Camera opened successfully on index {index}")
+                return cap
+            cap.release()
+
+        raise RuntimeError("Could not open webcam. Check camera permissions and make sure no other app is using the camera.")
         
     def count_fingers(self, landmarks):
         """Count extended fingers"""
@@ -142,37 +163,40 @@ class GestureApp:
         self.plocX, self.plocY = self.clocX, self.clocY
     
     def handle_gesture_mode(self, hand_landmarks, frame):
-        """Handle gesture control mode"""
+        # """Handle gesture control mode"""
         current_time = time.time()
         cnt = self.count_fingers(hand_landmarks)
+        action_map = {
+            1: ("right", "RIGHT"),
+            2: ("left", "LEFT"),
+            3: ("up", "UP"),
+            4: ("down", "DOWN"),
+            5: ("space", "SPACE")
+        }
         
         # Display finger count
         cv2.putText(frame, f"Fingers: {cnt}", (10, 80), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(frame, "1=RIGHT 2=LEFT 3=UP 4=DOWN 5=SPACE", (10, 120),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 255, 180), 2)
         
-        if self.prev_finger_count != cnt:
-            if not self.gesture_initialized:
-                self.gesture_start_time = current_time
-                self.gesture_initialized = True
-            elif (current_time - self.gesture_start_time) > 0.2:
-                if cnt == 1:
-                    pyautogui.press("right")
-                    cv2.putText(frame, "RIGHT", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                elif cnt == 2:
-                    pyautogui.press("left") 
-                    cv2.putText(frame, "LEFT", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                elif cnt == 3:
-                    pyautogui.press("up")
-                    cv2.putText(frame, "UP", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                elif cnt == 4:
-                    pyautogui.press("down")
-                    cv2.putText(frame, "DOWN", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                elif cnt == 5:
-                    pyautogui.press("space")
-                    cv2.putText(frame, "SPACE", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                
-                self.prev_finger_count = cnt
-                self.gesture_initialized = False
+        if cnt != self.gesture_candidate_count:
+            self.gesture_candidate_count = cnt
+            self.gesture_candidate_start_time = current_time
+
+        held_long_enough = (current_time - self.gesture_candidate_start_time) >= self.GESTURE_HOLD_TIME
+        cooldown_complete = (current_time - self.last_gesture_trigger_time) >= self.GESTURE_COOLDOWN
+
+        if held_long_enough and cooldown_complete and cnt in action_map:
+            key_name, action_text = action_map[cnt]
+            pyautogui.press(key_name)
+            self.last_gesture_trigger_time = current_time
+            self.last_action_text = action_text
+            self.last_action_time = current_time
+
+        if self.last_action_text and (current_time - self.last_action_time) <= 0.8:
+            cv2.putText(frame, self.last_action_text, (10, 155),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     
     def handle_mode_switching(self, hand_landmarks, frame):
         """Handle mode switching logic"""
