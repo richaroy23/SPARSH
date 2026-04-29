@@ -17,7 +17,7 @@ SPARSH is a touchless gesture and voice control system with a modern web-based f
 
 ### System Requirements
 - Windows 10/11 or Linux/macOS
-- Python 3.7 or higher
+- Python 3.10 or 3.11 recommended
 - Webcam (for gesture control)
 - Microphone (for voice control)
 - Internet connection (for speech recognition)
@@ -26,8 +26,10 @@ SPARSH is a touchless gesture and voice control system with a modern web-based f
 
 Install all dependencies with:
 ```bash
-pip install flask flask-cors opencv-python mediapipe SpeechRecognition pyautogui numpy
+pip install flask flask-cors opencv-python mediapipe SpeechRecognition PyAudio pyautogui numpy
 ```
+
+If you are using Python 3.13, install Python 3.11 and create a new virtual environment first. MediaPipe is not reliably available for every Python 3.13 setup yet.
 
 Or run the automatic installer script.
 
@@ -53,7 +55,7 @@ Or run the automatic installer script.
 
 1. **Install dependencies**
    ```bash
-   pip install flask flask-cors opencv-python mediapipe SpeechRecognition pyautogui numpy
+   pip install flask flask-cors opencv-python mediapipe SpeechRecognition PyAudio pyautogui numpy
    ```
 
 2. **Start the backend server**
@@ -339,6 +341,7 @@ logger = logging.getLogger(__name__)
 | OpenCV | Computer vision | `pip install opencv-python` |
 | MediaPipe | Hand detection | `pip install mediapipe` |
 | SpeechRecognition | Voice recognition | `pip install SpeechRecognition` |
+| PyAudio | Microphone input backend for SpeechRecognition | `pip install PyAudio` |
 | PyAutoGUI | Mouse/keyboard control | `pip install pyautogui` |
 | NumPy | Numerical computing | `pip install numpy` |
 
